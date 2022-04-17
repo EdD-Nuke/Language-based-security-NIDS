@@ -82,6 +82,30 @@ def analysis():
         else:
             break
     return(False, "")
+ 
+"""
+Idea:
+* Use livecapture that runs all the time
+* Dot not save all the packet info
+* Only save value of counters
+* SYN flood attack detection:
+    SYNCounter should count number of messages with SYN flag
+    ACKCounter should count number of messages with ACK flag
+    Also start a SYNFloodTimer
+    IF SYNCounter - ACKCounter > threshold in timeframe then we alarm and block start saving packets
+
+
+"""
+
+def dosAnalysis(packet):
+    switcher = {
+        0: ""
+
+    }
+
+
+
+
 
 def mitigation(attack):
 
@@ -90,10 +114,6 @@ def mitigation(attack):
 
 start = time.time  
 Cap()
-
-
-
-
 
 
 
