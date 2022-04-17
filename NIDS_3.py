@@ -88,11 +88,21 @@ Idea:
 * Use livecapture that runs all the time
 * Dot not save all the packet info
 * Only save value of counters
+* Start saving packets when an attack is detected
 * SYN flood attack detection:
     SYNCounter should count number of messages with SYN flag
     ACKCounter should count number of messages with ACK flag
     Also start a SYNFloodTimer
-    IF SYNCounter - ACKCounter > threshold in timeframe then we alarm and block start saving packets
+    IF SYNCounter - ACKCounter > threshold in timeframe then we set off alarm and block start saving packets
+    ELSE reset both counters and timeframe
+    Start over 
+
+* ICMP/UDP flood
+    ICMPCounter should count the number of packets received from same IP address
+    UDPCounter should count the number of packets received from same IP address
+    Trigger alarm if ICMPCounter || UDPCounter > threshold in timeframe
+    ELSE reset timer and counters and start over
+
 
 
 """
