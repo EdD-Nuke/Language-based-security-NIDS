@@ -25,7 +25,7 @@ ICMP_attr = {}
 
 def Cap():
     count = 0
-    capture = pyshark.LiveCapture("WI-FI")
+    capture = pyshark.LiveCapture("WI-FI", display_filter='tcp.analysis.fast_retransmission')
     for packet in capture:
         alarm = False
         count += 1
@@ -37,11 +37,19 @@ def Cap():
         if alarm:
             mitigation(attack)
 
+    field_names = packet.tcp._all_fields
+    field_values = packet.tcp._all_fields.values()
+    for field_name in field_names:
+        for field_value in field_values:
+            if field_name == 'tcp.payload':
+               print(f'{field_name} -- {field_value}')
+
 def distribute(packet) :
     TCP_object = open(r"C:/Users/edina/Downloads/Lang. Based Sec/TCP.txt", "a")
     UDP_object = open(r"C:/Users/edina/Downloads/Lang. Based Sec/UDP.txt", "a")
     UDP_DNS_object = open(r"C:/Users/edina/Downloads/Lang. Based Sec/UDP_DNS.txt", "a")
     try:
+        count += 1
         protocol = packet.transport_layer
         if "tcp" in packet and "ip" not in packet:
             #packet_time = packet.sniff_time
@@ -80,6 +88,10 @@ def distribute(packet) :
         #
         #
         #Here look for more packet petterns!
+
+        #CHECKER FOR SEQ DATA
+        seq = packet[protocol].seq
+        print("packet count %d seq is %s " %(count, seq ))
 
     except AttributeError as e:
             print(e)
