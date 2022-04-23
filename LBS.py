@@ -6,18 +6,12 @@ import sys
 from pyshark.capture.live_capture import LiveCapture
 from scapy.all import *
 import pandas as pd
+import socket
 
-#DoS attacks port 80 based assume
-protocollayers = {}
-protocolAttributes = {}
-
-#global TCP_list
+Ports_List = [] #List of all ports visited every 5 seconds
 TCP_list = [] #TCP list packet storage
-#global UDP_list
 UDP_list = [] #UDP list package storage
-#global SYN_counter
 SYN_counter = 0
-#global ACK_counter
 ACK_counter = 0
 
 
@@ -25,19 +19,26 @@ ACK_counter = 0
 def Cap():
     timer_analysis_start = time.time
     capture = pyshark.LiveCapture("WI-FI", display_filter='tcp.analysis.fast_retransmission')
+    Local_IP = socket.gethostbyname(socket.gethostname())
 
     for packet in capture:
         timer_analysis_end = time.time
-        alarm = False
+        DoS = False
+        Scan = False
+        if packet.ip.dst == Local_IP :
+            Ports_List.extend(packet[packet.transport_layer].dstport)
         counters_up_to_date(packet)
 
         if timer_analysis_end - timer_analysis_start > 5 :      #Analysis every 5 seconds
             timer_analysis_start = time.time
-            (alarm, attack) = analysis()
+            (DoS, Scan) = analysis()
 
-        if alarm:
+        if DoS or Scan:
             distribute(packet)
-            mitigation(attack)
+            if DoS :
+                mitigation_DoS()
+            else :
+                mitigation_Scan()
 
 
 def counters_up_to_date(packet) :
@@ -105,7 +106,6 @@ def distribute(packet) :
         #CHECKER FOR SEQ DATA
         seq = packet[protocol].seq
         print("packet count seq is %s " %(seq)) #counts_seq
-
     except AttributeError as e:
             print(e)
             SystemExit()
@@ -113,8 +113,6 @@ def distribute(packet) :
     UDP_object.close()
     UDP_DNS_object.close()
 
-DOS_list = []
-Attcak_list2 = []
 
 #SYN flood
 #UDP flood
@@ -122,16 +120,37 @@ Attcak_list2 = []
 #Cases-switch here
 #Assume that syn flood is coming from one ip address, then its easier to block
 def analysis():
-    start_time = time.time
-    if SYN_counter - ACK_counter > 100 :
-        SYN_counter = 0
-        ACK_counter = 0
-        return (True, 'DoS')
-    else :
-        SYN_counter = 0
-        ACK_counter = 0
-    return(False, "")
+    DoS = analysis_DoS()
+    Scan = analysis_Scan()
+    return(DoS, Scan)
  
+
+def analysis_DoS() :
+
+    return 0
+
+
+def analysis_Scan() :
+    number_of_visited_ports = different(Ports_List)
+    Ports_List = []
+    if number_of_visited_ports > 1000 :
+        return True
+    return False
+
+def different(List) :
+    n = len(List)
+    counter = 0
+    for i in range (0,n) :
+        check = 0
+        for j in range (0,i) :
+            if List[i] == List[j] :
+                check += 1
+        if check == 0 :
+            counter += 1
+    return counter
+
+
+
 """
 Idea:
 * Use livecapture that runs all the time
@@ -152,17 +171,12 @@ Idea:
     ELSE reset timer and counters and start over
 """
 
-def dosAnalysis(packet):
-    switcher = {
-        0: ""
 
-    }
+def mitigation_DoS(attack):
 
+    return 0
 
-
-
-
-def mitigation(attack):
+def mitigation_Scan(attack):
 
     return 0
 
