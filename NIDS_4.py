@@ -7,6 +7,11 @@ from pyshark.capture.live_capture import LiveCapture
 from scapy.all import *
 import pandas as pd
 import os
+from math import ceil
+
+
+
+##Add ssh question to Main Slack LAng B. Sec
 
 #DoS attacks port 80 based assume
 protocollayers = {}
@@ -19,9 +24,14 @@ UDP_list_DNS = []
 ##################
 TLP_packets = {}
 TLP_attr = {}
-
 ICMP_packets = {}
 ICMP_attr = {}
+
+#INIT:
+counts_seq = 0
+sourceAddress = packet.ip.src
+destinationAddress = packet.ip.dst
+protocol = packet.transport_layer
 
 def Cap():
     count = 0
@@ -37,20 +47,26 @@ def Cap():
         if alarm:
             mitigation(attack)
 
-    field_names = packet.tcp._all_fields
-    field_values = packet.tcp._all_fields.values()
-    for field_name in field_names:
-        for field_value in field_values:
-            if field_name == 'tcp.payload':
-               print(f'{field_name} -- {field_value}')
 
 def distribute(packet) :
+
+    ##INITIALIZATION:##____________________________________________________
+    #FILE OBJECTS:
     TCP_object = open(r"C:/Users/edina/Downloads/Lang. Based Sec/TCP.txt", "a")
     UDP_object = open(r"C:/Users/edina/Downloads/Lang. Based Sec/UDP.txt", "a")
     UDP_DNS_object = open(r"C:/Users/edina/Downloads/Lang. Based Sec/UDP_DNS.txt", "a")
+    ##_____________________________________________________________________________
+
     try:
-        count += 1
-        protocol = packet.transport_layer
+        #Check if TCP syn and fin messages are fine then scan trough the tcp and fetch to file
+        field_names = packet.tcp._all_fields
+        field_values = packet.tcp._all_fields.values()
+        for field_name in field_names:
+            for field_value in field_values:
+                if field_name == 'tcp.payload':
+                    print(f'{field_name} -- {field_value[100:120, 1]}') #100:120, 1
+                    print("*"*10 + "Continuiing" + "*"*10)
+
         if "tcp" in packet and "ip" not in packet:
             #packet_time = packet.sniff_time
             str_N = ('Name: ', packet.layers) #[-2]
@@ -78,20 +94,16 @@ def distribute(packet) :
         #     ICMP_packets += [[packet.layers, packet[protocol].srcport, packet[protocol].dst, packet.length, time.time, ICMP_attr]]
         #     ICMP_attr += 1
 
-        elif "udp" in packet and packet[packet.transport_layer].dstport == '53':
-            packet_time2 = packet.sniff_time
-            str3 = ('Name: ', packet.layers)
-            str3 += ('Scr. Port: ', packet[protocol].srcport)
-            str3 += ('Dst. Port: ', packet[protocol].dstport)
-            UDP_DNS_object.writelines(str(str3) + os.linesep)
-            UDP_list_DNS.extend(packet)
+        # elif "udp" in packet and packet[packet.transport_layer].dstport == '53':
+        #     packet_time2 = packet.sniff_time
+        #     str3 = ('Name: ', packet.layers)
+        #     str3 += ('Scr. Port: ', packet[protocol].srcport)
+        #     str3 += ('Dst. Port: ', packet[protocol].dstport)
+        #     UDP_DNS_object.writelines(str(str3) + os.linesep)
+        #     UDP_list_DNS.extend(packet)
         #
         #
         #Here look for more packet petterns!
-
-        #CHECKER FOR SEQ DATA
-        seq = packet[protocol].seq
-        print("packet count %d seq is %s " %(count, seq ))
 
     except AttributeError as e:
             print(e)
@@ -108,15 +120,32 @@ Attcak_list2 = []
 #ICMP FLood
 #Cases-switch here
 #Assume that syn flood is coming from one ip address, then its easier to block
+
+#FLAGS:
+synFlag = bool(packet.tcp.flags_syn)
+ackFlag = bool(packet.tcp.flags_ack)
+resetFlag = bool(packet.tcp.flags_reset)
+
 def analysis():
     start_time = time.time
-    for packet in TCP_list and UDP_list:
-        if start_time - packet[4] < 10:
-            return (True, "DoS")
-
-        else:
-            break
-    return(False, "")
+    if sourceAddress == '127.0.0.1':
+        for packet in TCP_list and UDP_list:
+            if start_time - packet[4] < 10:
+                #CHECKER FOR SEQ DATA
+                seq = packet[protocol].seq
+                print("packet count seq is %s " %(seq)) #counts_seq
+                return (True, "DoS")
+            #HAlf open connection:
+            elif ackFlag == True and resetFlag == True:
+                counts_seq += 1
+                timer = ceil(time.perf_counter())
+                if counts_seq > 20 and timer > 10:
+                    print("Here is some analysis: ( victim : {} ->  attacker : {} )".format(sourceAddress ,destinationAddress))
+                else:
+                    print("No problemo!")
+            else:
+                break
+        return(False, "")
 
 def mitigation(attack):
 
