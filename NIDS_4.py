@@ -8,14 +8,11 @@ from scapy.all import *
 import pandas as pd
 import os
 from math import ceil
-
-
+import socket
 
 ##Add ssh question to Main Slack LAng B. Sec
 
 #DoS attacks port 80 based assume
-protocollayers = {}
-protocolAttributes = {}
 
 TCP_list = [] #TCP list packet storage
 UDP_list = [] #UDP list package storage
@@ -29,32 +26,76 @@ ICMP_attr = {}
 
 #INIT:
 counts_seq = 0
-sourceAddress = packet.ip.src
-destinationAddress = packet.ip.dst
-protocol = packet.transport_layer
+SYN_counter = 0
+ACK_counter = 0
+UDP_counter = 0
+global Ports_List
+Ports_List = [] #List of all ports visited every 5 seconds
+
 
 def Cap():
-    count = 0
-    capture = pyshark.LiveCapture("WI-FI", display_filter='tcp.analysis.fast_retransmission')
-    for packet in capture:
-        alarm = False
-        count += 1
-        distribute(packet)
-        #Time based capture, i.e 3 sec packet capturing
-        if count > 10:
-            (alarm, attack) = analysis()
-            count = 0
-        if alarm:
-            mitigation(attack)
+    global Ports_List
+    timer_analysis_start = time.time()
+    capture = pyshark.LiveCapture("WI-FI")
+    Local_IP = socket.gethostbyname(socket.gethostname())
+
+    try:
+        for packet in capture:
+            timer_analysis_end = time.time()
+            DoS = False
+            Scan = False
+            print(packet)
+            if packet.ip.dst == Local_IP and packet[packet.transport_layer].dstport != None:
+                Ports_List.extend(packet[packet.transport_layer].dstport)
+            counters_up_to_date(packet)
+
+            if timer_analysis_end - timer_analysis_start > 5 :      #Analysis every 5 seconds
+                print("analysing")
+                timer_analysis_start = time.time()
+                (DoS, Scan) = analysis()
+
+            if DoS or Scan:
+                distribute(packet)
+                if DoS :
+                    mitigation_DoS()
+                else :
+                    mitigation_Scan()
+    except AttributeError as e:
+            print(e)
+            SystemExit()
+
+def counters_up_to_date(packet) :
+    global SYN_counter
+    global ACK_counter
+    global UDP_counter
+    #print("In counter_up_to_date")
+    #This needs to change to flag_syn or whataver represents the syn flag
+    if "tcp" in packet :
+        SYN_counter += 1
+        return SYN_counter
+    #This needs to change to flag_ack or whataver represents the ack flag
+    elif "ack" in packet :
+        ACK_counter += 1
+        return ACK_counter
+    elif "udp" in packet :
+        UDP_counter += 1
+        return UDP_counter
 
 
 def distribute(packet) :
-
     ##INITIALIZATION:##____________________________________________________
+    sourceAddress = packet.ip.src
+    destinationAddress = packet.ip.dst
+    #FLAGS:
+    synFlag = bool(packet.tcp.flags_syn)
+    ackFlag = bool(packet.tcp.flags_ack)
+    resetFlag = bool(packet.tcp.flags_reset)
+    protocol = packet.transport_layer
+
     #FILE OBJECTS:
-    TCP_object = open(r"C:/Users/edina/Downloads/Lang. Based Sec/TCP.txt", "a")
-    UDP_object = open(r"C:/Users/edina/Downloads/Lang. Based Sec/UDP.txt", "a")
-    UDP_DNS_object = open(r"C:/Users/edina/Downloads/Lang. Based Sec/UDP_DNS.txt", "a")
+    TCP_object = open(r"TCP.txt", "a")
+    UDP_object = open(r"UDP.txt", "a")
+    UDP_DNS_object = open(r"UDP_DNS.txt", "a")
     ##_____________________________________________________________________________
 
     try:
@@ -75,16 +116,16 @@ def distribute(packet) :
             str1 = (str_N, str_S_p, str_D_p )# "Seq.": packet.sequence, "Len": packet.length, "Time": time.time, "Attri": TLP_attr   packet_time
             TCP_object.writelines(str(str1) + os.linesep)
             print ('%s  %s:%s --> %s:%s' % (str_N, packet[protocol].srcaddr, str_S_p, str_D_p, packet[protocol].dstaddr))
-            TCP_list.extend(packet)
+            #TCP_list.extend(packet)
         elif "udp" in packet:
-            packet_time2 = packet.sniff_time
+            #packet_time2 = packet.sniff_time
             str_N_2 = ('Name: ', packet.layers[-2])
             str_S_p_2 = ('Scr. Port: ', packet[protocol].srcport)
             str_D_p_2 = ('Dst. Port: ', packet[protocol].dstport)
-            str2 = (str_N_2, str_S_p_2, str_D_p_2, packet_time2)
+            str2 = (str_N_2, str_S_p_2, str_D_p_2) #packet_time2
             #{"Name":packet.layers, "Src. Port": packet[protocol].srcport, "Dst. Port": packet[protocol].dstport, "Len": packet.length, "Time": time.time}
             UDP_object.writelines(str(str2) + os.linesep)
-            UDP_list.extend(packet)
+            #UDP_list.extend(packet)
             print ('%s  %s:%s --> %s:%s' % (str_N_2, packet[protocol].srcaddr, str_S_p, str_D_p, packet[protocol].dstaddr))
         
         # if "tcp" in packet or "udp" in packet :
@@ -112,8 +153,6 @@ def distribute(packet) :
     UDP_object.close()
     UDP_DNS_object.close()
 
-DOS_list = []
-Attcak_list2 = []
 
 #SYN flood
 #UDP flood
@@ -121,133 +160,85 @@ Attcak_list2 = []
 #Cases-switch here
 #Assume that syn flood is coming from one ip address, then its easier to block
 
-#FLAGS:
-synFlag = bool(packet.tcp.flags_syn)
-ackFlag = bool(packet.tcp.flags_ack)
-resetFlag = bool(packet.tcp.flags_reset)
+def analysis_DoS():
+    global SYN_counter
+    global ACK_counter
+    global UDP_counter
+    start_time = time.time()
+    if SYN_counter - ACK_counter > 10 :
+        SYN_counter = 0
+        ACK_counter = 0
+        return (True) #'TCP SYN Flood'
+    elif UDP_counter <= 10:
+        SYN_counter = 0
+        ACK_counter = 0
+        return(False) #"No TCP SYN flood"
+    elif UDP_counter > 10:
+        UDP_counter = 0
+        return (True) #, "UDP Flood"
+    else:
+        return (False) #, "No UDP flood"
+
+def analysis_Scan():
+    global Ports_List
+    number_of_visited_ports = different(Ports_List)
+    Ports_List = []
+    if number_of_visited_ports > 1000 :
+        return True
+    return False
 
 def analysis():
-    start_time = time.time
-    if sourceAddress == '127.0.0.1':
-        for packet in TCP_list and UDP_list:
-            if start_time - packet[4] < 10:
-                #CHECKER FOR SEQ DATA
-                seq = packet[protocol].seq
-                print("packet count seq is %s " %(seq)) #counts_seq
-                return (True, "DoS")
-            #HAlf open connection:
-            elif ackFlag == True and resetFlag == True:
-                counts_seq += 1
-                timer = ceil(time.perf_counter())
-                if counts_seq > 20 and timer > 10:
-                    print("Here is some analysis: ( victim : {} ->  attacker : {} )".format(sourceAddress ,destinationAddress))
-                else:
-                    print("No problemo!")
-            else:
-                break
-        return(False, "")
+    DoS = analysis_DoS()
+    Scan = analysis_Scan()
+    return(DoS, Scan)
 
-def mitigation(attack):
+##Append port info, source address and type of attack
+##Print stuff later
+
+def different(List) :
+    n = len(List)
+    counter = 0
+    for i in range (0,n) :
+        check = 0
+        for j in range (0,i) :
+            if List[i] == List[j] :
+                check += 1
+        if check == 0 :
+            counter += 1
+    return counter
+
+def mitigation_DoS(attack):
+
+    return 0
+
+def mitigation_Scan(attack):
 
     return 0
 
 
-start = time.time  
+start = time.time()
+print("it works")
 Cap()
+SystemExit(time)
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# class Rules():
-#     protocols_tcp = {}
-#     protocols_udp = {}
-#     #Define protocol
-#     def protocols_tcp(self, name, s_port, d_port, seq, ack, len):
-#         self.name = name
-
-#     def protocols_udp(self, name, s_port, d_port, len):
-#         self.name = name
-#         # self.s_port = s_port
-#         # self.d_port = d_port
-#         # self.len = len
-
-#     #Define protocols to check for
-#     def network_conversation(protocols_tcp, protocols_udp):
-#         try:
-#             for protocol in protocols_udp and protocols_tcp:
-#                 if protocols_tcp.name == "tcp":
-#                     protocollayers[protocol] = ["tcp"]
-#                     protocolAttributes = {"Name": 0, "Src. Port": 0, "Dst. Port": 0, "Seq": 0, "Ack": 0, "Len": 0}
-#                 elif protocols_udp.name == "udp": 
-#                     protocollayers[protocol] = ["none", "udp"]
-#                     protocolAttributes = {"Name": 0, "Src. Port": 0, "Dst. Port": 0, "Len": 0}
-#             return {"protocollayers": protocollayers,  "protocolAttributes": protocolAttributes}
-#         except AttributeError as e:
-#             print(e)
-#             SystemExit()
-
-# def print_protocol_cap():
-#     # sniffer = scapy.Sniffer()
-#     # myDissector = sniffer.Dissector()
-#     # c1_tcp = {}
-#     # c1 = Counter
-#     capture = pyshark.LiveCapture("WI-FI")
-#     for packet in capture:
-#         #dispatch packets to different protocols
-#         appending(packet)
-#         analysis()
-#         if "tcp" in packet:
-#             print("TCP is here")
-#             if packet.source_addr.count > int(10):
-#                 #cancel connection
-#                 #or add to black_list
-#                 print("h")
-#         elif "udp" in capture:
-#             print("UDP here")
-
-# def TCP_list():
-#     #define packet
-#     #Atrribute with self.XXXX
-#     #Fecth attributes here
-#     # self.s_port = s_port
-#     # self.d_port = d_port
-#     # self.seq = seq
-#     # self.ack = ack
-#     # self.len = len
-#     tcp_list = ()
-
-#     #For attribute in packet write to file continue with next line break
-#     for packet in caputre:
-#         append.tcp_list()
-#         for lines in tcp_list:
-#             writetofile
-
-# def UDP_list():
-#     #define packet
-#     #Atrribute with self.XXXX
-#     tcp_list = ()
-
-#     #For attribute in packet write to file continue with next line break
-#     for packet in caputre:
-#         append.tcp_list()
-#         for lines in tcp_list:
-#             writetofile
-
-# ##Implement later
-# def Other_List():
+# def analysis():
+#     start_time = time.time
+#     if sourceAddress == '127.0.0.1':
+#         for packet in TCP_list and UDP_list:
+#             if start_time - packet[4] < 10:
+#                 #CHECKER FOR SEQ DATA
+#                 seq = packet[protocol].seq
+#                 print("packet count seq is %s " %(seq)) #counts_seq
+#                 return (True, "DoS")
+#             #HAlf open connection:
+#             elif ackFlag == True and resetFlag == True:
+#                 counts_seq += 1
+#                 timer = ceil(time.perf_counter())
+#                 if counts_seq > 20 and timer > 10:
+#                     print("Here is some analysis: ( victim : {} ->  attacker : {} )".format(sourceAddress ,destinationAddress))
+#                 else:
+#                     print("No problemo!")
+#             else:
+#                 break
+#         return(False, "")
