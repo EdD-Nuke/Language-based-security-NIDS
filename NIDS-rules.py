@@ -9,6 +9,8 @@ from sniffer import Dissector
 from pyshark.capture.live_capture import LiveCapture
 import scapy.all
 
+
+"""
 #DoS attacks port 80 based assume
 #
 protocollayers = {}
@@ -50,15 +52,15 @@ def print_protocol_cap():
     capture = pyshark.LiveCapture("WI-FI")
     for packet in capture:
         #dispatch packets to different protocols
-        appending(packet)
-        analysis()
+       # appending(packet)
+        #analysis()
         if "tcp" in packet:
             print("TCP is here")
             if packet.source_addr.count > int(10):
                 #cancel connection
                 #or add to black_list
-        elif "udp" in capture:
-            print("UDP here")
+       # elif "udp" in capture:
+           # print("UDP here")
 
 def TCP_list():
     #define packet
@@ -92,3 +94,4 @@ def UDP_list():
 def Other_List():
     
 print_protocol_cap()
+"""

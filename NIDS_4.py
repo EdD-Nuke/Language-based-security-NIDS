@@ -44,25 +44,39 @@ def Cap():
             timer_analysis_end = time.time()
             DoS = False
             Scan = False
-            print(packet)
-            if packet.ip.dst == Local_IP and packet[packet.transport_layer].dstport != None:
-                Ports_List.extend(packet[packet.transport_layer].dstport)
+            #print(packet)
+            #We probably want another try: here otherwise it eill jump out and not analyse anything
+            try: 
+                packet.ip.dst
+            except AttributeError as e:
+                print(e)
+            else:
+                if packet.ip.dst == Local_IP and packet[packet.transport_layer].dstport != None:
+                    Ports_List.extend(packet[packet.transport_layer].dstport)
+
             counters_up_to_date(packet)
 
             if timer_analysis_end - timer_analysis_start > 5 :      #Analysis every 5 seconds
                 print("analysing")
                 timer_analysis_start = time.time()
                 (DoS, Scan) = analysis()
+                print("Analysing done")
 
             if DoS or Scan:
+                print("Distribution")
                 distribute(packet)
+                print("Distribution done")
                 if DoS :
-                    mitigation_DoS()
+                    print("DoS mitigation")
+                    mitigation_DoS("list_of_ip_addresses")
+                    print("DoS mitigation done")
                 else :
-                    mitigation_Scan()
+                    print("Scan mitigation")
+                    mitigation_Scan("list_of_ip_addresses")
+                    print("Scan mitigation done")
     except AttributeError as e:
             print(e)
-            SystemExit()
+            #SystemExit()
 
 def counters_up_to_date(packet) :
     global SYN_counter
@@ -70,16 +84,43 @@ def counters_up_to_date(packet) :
     global UDP_counter
     #print("In counter_up_to_date")
     #This needs to change to flag_syn or whataver represents the syn flag
-    if "tcp" in packet :
-        SYN_counter += 1
-        return SYN_counter
-    #This needs to change to flag_ack or whataver represents the ack flag
-    elif "ack" in packet :
-        ACK_counter += 1
-        return ACK_counter
-    elif "udp" in packet :
-        UDP_counter += 1
-        return UDP_counter
+    if "tcp" in packet:
+        try: 
+            packet.tcp.flags_syn
+        except AttributeError as e:
+            print()
+        else:
+            if packet.tcp.flags_syn == 1:
+             print(packet.tcp)  
+             SYN_counter += 1
+             print("Syn_counter + 1")
+             return SYN_counter
+            else:
+                print("flag_syn: ",packet.tcp.flags_syn)
+    elif "ack" in packet:
+        try: 
+            packet.tcp.flags_ack
+        except AttributeError as e:
+            print()
+        else:
+            if packet.tcp.flags_ack == 1:
+             print(packet.tcp)
+             ACK_counter += 1
+             print("Ack_counter + 1")
+             return ACK_counter
+   
+    # if packet.tcp.flags_syn:
+    #     print(packet.tcp)
+    #     SYN_counter += 1
+    #     print("Syn_counter + 1")
+    #     return SYN_counter
+    # #This needs to change to flag_ack or whataver represents the ack flag
+    # elif "ack" in packet :
+    #     ACK_counter += 1
+    #     return ACK_counter
+    # elif "udp" in packet :
+    #     UDP_counter += 1
+    #     return UDP_counter
 
 
 def distribute(packet) :
@@ -102,11 +143,11 @@ def distribute(packet) :
         #Check if TCP syn and fin messages are fine then scan trough the tcp and fetch to file
         field_names = packet.tcp._all_fields
         field_values = packet.tcp._all_fields.values()
-        for field_name in field_names:
-            for field_value in field_values:
-                if field_name == 'tcp.payload':
-                    print(f'{field_name} -- {field_value[100:120, 1]}') #100:120, 1
-                    print("*"*10 + "Continuiing" + "*"*10)
+        #for field_name in field_names:
+            #for field_value in field_values:
+                #if field_name == 'tcp.payload':
+                    #print(f'{field_name} -- {field_value[100:120, 1]}') #100:120, 1
+                    #print("*"*10 + "Continuing" + "*"*10)
 
         if "tcp" in packet and "ip" not in packet:
             #packet_time = packet.sniff_time
@@ -207,11 +248,11 @@ def different(List) :
             counter += 1
     return counter
 
-def mitigation_DoS(attack):
+def mitigation_DoS(ip_addresses):
 
     return 0
 
-def mitigation_Scan(attack):
+def mitigation_Scan(ip_addresses):
 
     return 0
 
@@ -219,7 +260,7 @@ def mitigation_Scan(attack):
 start = time.time()
 print("it works")
 Cap()
-SystemExit(time)
+#SystemExit(time)
 
 
 # def analysis():
