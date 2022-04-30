@@ -33,6 +33,18 @@ global Ports_List
 Ports_List = [] #List of all ports visited every 5 seconds
 
 
+"""
+We need to check the most commonly occuring ip address when we notice an attack, and blacklist it somehow
+
+
+
+"""
+
+
+
+
+
+
 def Cap():
     global Ports_List
     timer_analysis_start = time.time()
@@ -90,20 +102,18 @@ def counters_up_to_date(packet) :
         except AttributeError as e:
             print()
         else:
-            if packet.tcp.flags_syn == 1:
-             print(packet.tcp)  
+            #Check the first message in the tcp handshake
+            if packet.tcp.flags_syn == "1" and packet.tcp.flags_ack == "0":
+             #print(packet.tcp)  
              SYN_counter += 1
              print("Syn_counter + 1")
              return SYN_counter
-            else:
-                print("flag_syn: ",packet.tcp.flags_syn)
-    elif "ack" in packet:
         try: 
             packet.tcp.flags_ack
         except AttributeError as e:
             print()
         else:
-            if packet.tcp.flags_ack == 1:
+            if packet.tcp.flags_ack == "1" and packet.tcp.flags_syn == "0":
              print(packet.tcp)
              ACK_counter += 1
              print("Ack_counter + 1")
