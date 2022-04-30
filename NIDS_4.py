@@ -34,9 +34,15 @@ Ports_List = [] #List of all ports visited every 5 seconds
 
 
 """
-We need to check the most commonly occuring ip address when we notice an attack, and blacklist it somehow
+My thinking (David): 
+When we notice an attack, we will have to start save all the upcoming packets. As said before, we should store all the info we need in files to read later,
+but we also need some info for mitigation. Therefore, we should start so store all the ip-addresses for all upcoming packets in a list, and then send that
+list to mitigation. Then mitigation can search for the most common ip-address and add it to a blacklist file (or something similar).
 
 
+
+Also: For some reason, with some runs, there comes a lot of packets with ack = 1 which is weird.. that leads me to believe
+that we can only check for SYN flags. But maybe that is enough. 
 
 """
 
@@ -73,7 +79,6 @@ def Cap():
                 timer_analysis_start = time.time()
                 (DoS, Scan) = analysis()
                 print("Analysing done")
-
             if DoS or Scan:
                 print("Distribution")
                 distribute(packet)
@@ -106,31 +111,25 @@ def counters_up_to_date(packet) :
             if packet.tcp.flags_syn == "1" and packet.tcp.flags_ack == "0":
              #print(packet.tcp)  
              SYN_counter += 1
-             print("Syn_counter + 1")
+             print("Syn_counter: ", SYN_counter)
              return SYN_counter
-        try: 
-            packet.tcp.flags_ack
-        except AttributeError as e:
-            print()
-        else:
-            if packet.tcp.flags_ack == "1" and packet.tcp.flags_syn == "0":
-             print(packet.tcp)
-             ACK_counter += 1
-             print("Ack_counter + 1")
-             return ACK_counter
-   
-    # if packet.tcp.flags_syn:
-    #     print(packet.tcp)
-    #     SYN_counter += 1
-    #     print("Syn_counter + 1")
-    #     return SYN_counter
-    # #This needs to change to flag_ack or whataver represents the ack flag
-    # elif "ack" in packet :
-    #     ACK_counter += 1
-    #     return ACK_counter
-    # elif "udp" in packet :
-    #     UDP_counter += 1
-    #     return UDP_counter
+        # try: 
+        #     packet.tcp.flags_ack
+        # except AttributeError as e:
+        #     print()
+        # else:
+        #     if packet.tcp.flags_ack == "1" and packet.tcp.flags_syn == "0": #and packet.tcp.window_size_value < 1024:
+        #      #print("Window: ", packet.tcp.window_size_value)
+        #      print("ack: ",packet.tcp.ack)
+        #      print("flags_ack: ",packet.tcp.flags_ack)
+        #      print(packet.tcp)
+        #      ACK_counter += 1
+        #      #print("Ack_counter + 1")
+        #      return ACK_counter
+    elif "udp" in packet:
+        print("UDP-counter: ", UDP_counter)
+        UDP_counter += 1
+        return UDP_counter
 
 
 def distribute(packet) :
