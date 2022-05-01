@@ -24,17 +24,17 @@ TLP_attr = {}
 ICMP_packets = {}
 ICMP_attr = {}
 
-#INIT:
-counts_seq = 0
-SYN_counter = 0
-ACK_counter = 0
-UDP_counter = 0
-global Ports_List
-Ports_List = [] #List of all ports visited every 5 seconds
-
 
 def Cap():
-    global Ports_List
+    #INIT:
+    SYN_counter = 0
+    ACK_counter = 0
+    UDP_counter = 0
+    Ports_List = {} #List of all ports visited every 5 seconds
+    scan_attack_counter = 0
+    DoS_attack_counter = 0
+    IP_scan_attack = None
+
     timer_analysis_start = time.time()
     capture = pyshark.LiveCapture("WI-FI")
     Local_IP = socket.gethostbyname(socket.gethostname())
@@ -44,30 +44,35 @@ def Cap():
             timer_analysis_end = time.time()
             DoS = False
             Scan = False
-            print(packet)
-            if packet.ip.dst == Local_IP and packet[packet.transport_layer].dstport != None:
-                Ports_List.extend(packet[packet.transport_layer].dstport)
-            counters_up_to_date(packet)
+            Scan_indicator(packet, Local_IP, Ports_List)
+            Dos_indicator(packet, SYN_counter, ACK_counter, UDP_counter)
 
             if timer_analysis_end - timer_analysis_start > 5 :      #Analysis every 5 seconds
                 print("analysing")
                 timer_analysis_start = time.time()
-                (DoS, Scan) = analysis()
+                (DoS, Scan) = analysis(SYN_counter, ACK_counter, UDP_counter, Ports_List, IP_scan_attack)
 
             if DoS or Scan:
                 distribute(packet)
                 if DoS :
+                    DoS_attack_counter += 1
                     mitigation_DoS()
                 else :
+                    scan_attack_counter += 1
                     mitigation_Scan()
     except AttributeError as e:
             print(e)
             SystemExit()
 
-def counters_up_to_date(packet) :
-    global SYN_counter
-    global ACK_counter
-    global UDP_counter
+def Scan_indicator(packet, Local_IP, Ports_List) :
+    if packet.ip.dst == Local_IP and packet[packet.transport_layer].dstport != None :
+        if packet.ip.src in Ports_List.keys :
+            if packet[packet.transport_layer].dstport not in Ports_List[packet.ip.src] :
+                Ports_List[packet.ip.src].extend(packet[packet.transport_layer].dstport)
+        else :
+            Ports_List[packet.ip.src] = [packet[packet.transport_layer].dstport]
+
+def Dos_indicator(packet, SYN_counter, ACK_counter, UDP_counter) :
     #print("In counter_up_to_date")
     #This needs to change to flag_syn or whataver represents the syn flag
     if "tcp" in packet :
@@ -153,18 +158,16 @@ def distribute(packet) :
     UDP_object.close()
     UDP_DNS_object.close()
 
+def analysis(SYN_counter, ACK_counter, UDP_counter, Ports_List, IP_scan_attack):
+    DoS = analysis_DoS(SYN_counter, ACK_counter, UDP_counter)
+    if DoS :
+        DoS_attack_counter += 1
+    Scan = analysis_Scan(Ports_List, IP_scan_attack)
+    if Scan :
+        scan_attack_counter += 1
+    return(DoS, Scan)
 
-#SYN flood
-#UDP flood
-#ICMP FLood
-#Cases-switch here
-#Assume that syn flood is coming from one ip address, then its easier to block
-
-def analysis_DoS():
-    global SYN_counter
-    global ACK_counter
-    global UDP_counter
-    start_time = time.time()
+def analysis_DoS(SYN_counter, ACK_counter, UDP_counter):
     if SYN_counter - ACK_counter > 10 :
         SYN_counter = 0
         ACK_counter = 0
@@ -179,33 +182,24 @@ def analysis_DoS():
     else:
         return (False) #, "No UDP flood"
 
-def analysis_Scan():
-    global Ports_List
-    number_of_visited_ports = different(Ports_List)
-    Ports_List = []
-    if number_of_visited_ports > 1000 :
+def analysis_Scan(Ports_List, IP_scan_attack):
+    Different_Ports = []
+    for address_IP in Ports_List.keys :
+        if len(Ports_List[address_IP]) > 200 :
+            IP_scan_attack = address_IP
+            Ports_List = {}
+            return True
+        else :
+            for port in Ports_List[address_IP] :
+                if port not in Different_Ports :
+                    Different_Ports.extend(port)
+    Ports_List = {}
+    if len(Different_Ports) > 300 :
         return True
     return False
 
-def analysis():
-    DoS = analysis_DoS()
-    Scan = analysis_Scan()
-    return(DoS, Scan)
-
 ##Append port info, source address and type of attack
 ##Print stuff later
-
-def different(List) :
-    n = len(List)
-    counter = 0
-    for i in range (0,n) :
-        check = 0
-        for j in range (0,i) :
-            if List[i] == List[j] :
-                check += 1
-        if check == 0 :
-            counter += 1
-    return counter
 
 def mitigation_DoS(attack):
 
@@ -217,28 +211,5 @@ def mitigation_Scan(attack):
 
 
 start = time.time()
-print("it works")
 Cap()
 SystemExit(time)
-
-
-# def analysis():
-#     start_time = time.time
-#     if sourceAddress == '127.0.0.1':
-#         for packet in TCP_list and UDP_list:
-#             if start_time - packet[4] < 10:
-#                 #CHECKER FOR SEQ DATA
-#                 seq = packet[protocol].seq
-#                 print("packet count seq is %s " %(seq)) #counts_seq
-#                 return (True, "DoS")
-#             #HAlf open connection:
-#             elif ackFlag == True and resetFlag == True:
-#                 counts_seq += 1
-#                 timer = ceil(time.perf_counter())
-#                 if counts_seq > 20 and timer > 10:
-#                     print("Here is some analysis: ( victim : {} ->  attacker : {} )".format(sourceAddress ,destinationAddress))
-#                 else:
-#                     print("No problemo!")
-#             else:
-#                 break
-#         return(False, "")
