@@ -9,6 +9,8 @@ import pandas as pd
 import os
 from math import ceil
 import socket
+from psutil import process_iter
+from signal import SIGKILL
 
 ##Add ssh question to Main Slack LAng B. Sec
 
@@ -257,7 +259,21 @@ def different(List) :
             counter += 1
     return counter
 
-def mitigation_DoS(ip_addresses):
+
+'''
+- Maybe use this to close ports but i dont really understand what this does
+
+for proc in process_iter():
+    for conns in proc.get_connections(kind='inet'):
+        if conns.laddr[1] == 1300:
+            proc.send_signal(SIGKILL) 
+            continue
+
+'''
+
+def mitigation_DoS(port_numbers):
+
+
 
     return 0
 
