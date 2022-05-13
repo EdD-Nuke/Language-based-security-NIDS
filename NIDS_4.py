@@ -11,6 +11,7 @@ from math import ceil
 import socket
 from psutil import process_iter
 from signal import SIGKILL
+from collections import Counter
 
 ##Add ssh question to Main Slack LAng B. Sec
 
@@ -265,14 +266,15 @@ def different(List) :
 
 for proc in process_iter():
     for conns in proc.get_connections(kind='inet'):
-        if conns.laddr[1] == 1300:
+        if conns.laddr[1] == 1300: #Port number
             proc.send_signal(SIGKILL) 
             continue
 
 '''
 
 def mitigation_DoS(port_numbers):
-
+    c = Counter(port_numbers)
+    most_common_ip = c.most_common(1)
 
 
     return 0
