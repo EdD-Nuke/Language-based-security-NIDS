@@ -24,20 +24,27 @@ def Cap():
     DoS_attack_counter = 0
     IP_scan_attack = None
     timer_analysis_start = time.time()
-    capture = pyshark.LiveCapture("loopback")
+    capture = pyshark.FileCapture('C:/Users/edina/OneDrive/Backup/Skrivbord/capture_1_test.pcap')
     Local_IP = socket.gethostbyname(socket.gethostname())
     try:
         for packet in capture:
+            #print("aksdfh")
+            #print(capture)
+            try:
+                print("icmp: ", packet.icmp.type)
+            except AttributeError as e:
+                 pass
             timer_analysis_end = time.time()
             DoS = False
             UDP_flood = False
             TCP_flood = False
             Scan = False
+            #print("here in for?")
             Scan_indicator(packet, Local_IP, Ports_List)
             Dos_indicator(packet, SYN_counter, ACK_counter, UDP_counter)
             if timer_analysis_end - timer_analysis_start > 0 :      #Analysis every 5 seconds
                 timer_analysis_start = time.time()
-                print("before nalysis")
+                #print("before nalysis")
                 (DoS, Scan) = analysis(SYN_counter, ACK_counter, UDP_counter, Ports_List, IP_scan_attack, UDP_flood, TCP_flood)
             if DoS or Scan:
                 print("Dos: ", DoS)
@@ -52,7 +59,8 @@ def Cap():
                     print("SCAN ATTACK TIME: %s, and %s" % (time.time()-start, scan_attack_counter))
                     mitigation_Scan()
     except AttributeError as e:
-            print("In cap: ",e)
+            pass
+            #print(e) #"In cap: "
             SystemExit()
 
 def Scan_indicator(packet, Local_IP, Ports_List) :
@@ -60,8 +68,9 @@ def Scan_indicator(packet, Local_IP, Ports_List) :
          packet.ip.dst
          packet[packet.transport_layer].dstport
     except AttributeError as e:
-         print("In scan",e)
-    else :            
+        pass
+        #print("In scan",e)
+    else:            
         if packet.ip.dst == Local_IP and packet[packet.transport_layer].dstport != None :
             if packet.ip.src in Ports_List.keys():
                 Ports_List[packet.ip.src].extend(packet[packet.transport_layer].dstport)
@@ -72,13 +81,14 @@ def Scan_indicator(packet, Local_IP, Ports_List) :
 
 
 def Dos_indicator(packet, SYN_counter, ACK_counter, UDP_counter) :
-    print("in dos indicator")
+    #print("in dos indicator")
     #This needs to change to flag_syn or whataver represents the syn flag
     if "tcp" in packet:
         try: 
             packet.tcp.flags_syn
         except AttributeError as e:
-            print()
+            pass
+        #print(e)
         else:
             #Check the first message in the tcp handshake
             if packet.tcp.flags_syn == "1" and packet.tcp.flags_ack == "0":
@@ -106,7 +116,7 @@ def Dos_indicator(packet, SYN_counter, ACK_counter, UDP_counter) :
 
 
 def distribute(packet) :
-    print("distribute")
+    #print("distribute")
     ##INITIALIZATION:##____________________________________________________
     sourceAddress = packet.ip.src
     destinationAddress = packet.ip.dst
@@ -152,17 +162,18 @@ def distribute(packet) :
             print("Should be icmp src %s, should be icmp dst %s: " % (packet[protocol].srcaddr, packet[protocol].dstaddr))
 
     except AttributeError as e:
-            print("Here?",e)
+            #print(e)
+            pass
             SystemExit()
     TCP_object.close()
     UDP_object.close()
     UDP_DNS_object.close()
 
 def analysis(SYN_counter, ACK_counter, UDP_counter, Ports_List, IP_scan_attack, UDP_flood, TCP_flood):
-    print("ANALYSIS")
+    #print("ANALYSIS")
     DoS = analysis_DoS(SYN_counter, ACK_counter, UDP_counter, UDP_flood, TCP_flood)
     Scan = analysis_Scan(Ports_List, IP_scan_attack)
-    print("END OF ANALYSIS")
+    #print("END OF ANALYSIS")
     return(DoS, Scan)
 
 def analysis_DoS(SYN_counter, ACK_counter, UDP_counter, UDP_flood, TCP_flood):
@@ -183,7 +194,7 @@ def analysis_DoS(SYN_counter, ACK_counter, UDP_counter, UDP_flood, TCP_flood):
         return (False) #, "No UDP flood"
 
 def analysis_Scan(Ports_List, IP_scan_attack):
-    print("dictionary of ip and ports : ", Ports_List)
+    #print("dictionary of ip and ports : ", Ports_List)
     for address_IP in Ports_List.keys() :
         if  len(Ports_List[address_IP])> 40 : #40 ports every 5 seconds
             IP_scan_attack = address_IP
@@ -193,7 +204,9 @@ def analysis_Scan(Ports_List, IP_scan_attack):
     Ports_List = {}
     return False
 
-#def analysis_imcp(icmp_counter):
+# def analysis_icmp(icmp_counter):
+#     check if packet.icmp.seq == 1000
+
 
 
 
@@ -236,4 +249,5 @@ def mitigation_Scan():
 Cap()
 #SystemExit(time)
 #Ip address 130.241.238.143
-##sudo nmap -sS -p 1-5000 192.168.44.1 130.241.238.143 
+##sudo nmap -sS -p 1-5000 192.168.44.1 130.241.238.143
+#nmap -p 1-3339 --script smb-flood.nse 130.241.239.250
