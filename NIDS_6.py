@@ -24,7 +24,7 @@ def Cap():
     DoS_attack_counter = 0
     IP_scan_attack = None
     timer_analysis_start = time.time()
-    capture = pyshark.LiveCapture("WI-FI")
+    capture = pyshark.LiveCapture("loopback")
     Local_IP = socket.gethostbyname(socket.gethostname())
     try:
         for packet in capture:
@@ -35,31 +35,33 @@ def Cap():
             Scan = False
             Scan_indicator(packet, Local_IP, Ports_List)
             Dos_indicator(packet, SYN_counter, ACK_counter, UDP_counter)
-            if timer_analysis_end - timer_analysis_start > 5 :      #Analysis every 5 seconds
+            if timer_analysis_end - timer_analysis_start > 0 :      #Analysis every 5 seconds
                 timer_analysis_start = time.time()
+                print("before nalysis")
                 (DoS, Scan) = analysis(SYN_counter, ACK_counter, UDP_counter, Ports_List, IP_scan_attack, UDP_flood, TCP_flood)
             if DoS or Scan:
-                #print("Dos: ", DoS)
-                #print("Scan: ", Scan)
-                #distribute(packet)
+                print("Dos: ", DoS)
+                print("Scan: ", Scan)
+                distribute(packet)
                 if DoS :
                     DoS_attack_counter += 1
                     print("DOS ATTACK TIME: %s, and %s" % (time.time()-start, DoS_attack_counter))
-                    #mitigation_DoS(UDP_flood, TCP_flood)
+                    mitigation_DoS(UDP_flood, TCP_flood)
                 else :
                     scan_attack_counter += 1
                     print("SCAN ATTACK TIME: %s, and %s" % (time.time()-start, scan_attack_counter))
                     mitigation_Scan()
     except AttributeError as e:
-            print(e)
+            print("In cap: ",e)
             SystemExit()
 
 def Scan_indicator(packet, Local_IP, Ports_List) :
     try: 
-        packet.ip.dst
+         packet.ip.dst
+         packet[packet.transport_layer].dstport
     except AttributeError as e:
-        print(e)
-    else :
+         print("In scan",e)
+    else :            
         if packet.ip.dst == Local_IP and packet[packet.transport_layer].dstport != None :
             if packet.ip.src in Ports_List.keys():
                 Ports_List[packet.ip.src].extend(packet[packet.transport_layer].dstport)
@@ -68,7 +70,9 @@ def Scan_indicator(packet, Local_IP, Ports_List) :
             else :
                 Ports_List[packet.ip.src] = [packet[packet.transport_layer].dstport]
 
+
 def Dos_indicator(packet, SYN_counter, ACK_counter, UDP_counter) :
+    print("in dos indicator")
     #This needs to change to flag_syn or whataver represents the syn flag
     if "tcp" in packet:
         try: 
@@ -102,7 +106,7 @@ def Dos_indicator(packet, SYN_counter, ACK_counter, UDP_counter) :
 
 
 def distribute(packet) :
-    #print("distribute")
+    print("distribute")
     ##INITIALIZATION:##____________________________________________________
     sourceAddress = packet.ip.src
     destinationAddress = packet.ip.dst
@@ -127,7 +131,6 @@ def distribute(packet) :
         #     if field_name == 'tcp.payload':
         #         print(f'{field_name}') #-- {field_value[100:120, 1]}') #100:120, 1
         #         print("*"*10 + "Continuiing" + "*"*10) 
-
         if "tcp" in packet and "ip" not in packet:
             #packet_time = packet.sniff_time
             str_N = ('Name: ', packet.layers) #[-2]
@@ -145,19 +148,21 @@ def distribute(packet) :
             #{"Name":packet.layers, "Src. Port": packet[protocol].srcport, "Dst. Port": packet[protocol].dstport, "Len": packet.length, "Time": time.time}
             UDP_object.writelines(str(str2) + os.linesep)
             print ('%s  %s:%s --> %s:%s' % (str_N_2, packet[protocol].srcaddr, str_S_p, str_D_p, packet[protocol].dstaddr))
+        elif packet.icmp.type == '8':
+            print("Should be icmp src %s, should be icmp dst %s: " % (packet[protocol].srcaddr, packet[protocol].dstaddr))
 
     except AttributeError as e:
-            print(e)
+            print("Here?",e)
             SystemExit()
     TCP_object.close()
     UDP_object.close()
     UDP_DNS_object.close()
 
 def analysis(SYN_counter, ACK_counter, UDP_counter, Ports_List, IP_scan_attack, UDP_flood, TCP_flood):
-    #print("ANALYSIS")
+    print("ANALYSIS")
     DoS = analysis_DoS(SYN_counter, ACK_counter, UDP_counter, UDP_flood, TCP_flood)
     Scan = analysis_Scan(Ports_List, IP_scan_attack)
-    #print("END OF ANALYSIS")
+    print("END OF ANALYSIS")
     return(DoS, Scan)
 
 def analysis_DoS(SYN_counter, ACK_counter, UDP_counter, UDP_flood, TCP_flood):
@@ -178,20 +183,22 @@ def analysis_DoS(SYN_counter, ACK_counter, UDP_counter, UDP_flood, TCP_flood):
         return (False) #, "No UDP flood"
 
 def analysis_Scan(Ports_List, IP_scan_attack):
-    #print("dictionary of ip and ports : ", Ports_List)
+    print("dictionary of ip and ports : ", Ports_List)
     for address_IP in Ports_List.keys() :
         if  len(Ports_List[address_IP])> 40 : #40 ports every 5 seconds
             IP_scan_attack = address_IP
-            print(address_IP, IP_scan_attack)
+            print("The attack: ", address_IP, IP_scan_attack)
             Ports_List = {}
             return True
     Ports_List = {}
     return False
 
+#def analysis_imcp(icmp_counter):
+
 
 
 def mitigation_DoS(UDP_flood, TCP_flood):
-    #print("MITIGATION DOS")
+    print("MITIGATION DOS")
     blacklist_UDP = []
     blacklist_TCP = []
     if UDP_flood == True:
