@@ -1,6 +1,4 @@
-## Language-based-security-Repo.
-
-# Project for TDA602/DIT101 Language-Based Security LP4 Course
+# Project for TDA602/DIT101 Language-Based Security 2022 LP4 Course
 
 # Description
 NIDS built for detecting:
