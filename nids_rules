@@ -1,7 +1,0 @@
-import packetGen
-import pyshark
-
-
-flags = ["TCP", "ACK"...]
-
-pyshark.capture(
