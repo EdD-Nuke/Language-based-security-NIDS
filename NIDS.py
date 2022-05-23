@@ -52,8 +52,8 @@ def Cap():
     global Analysis_interval
     storage_counter = 0
     timer_analysis_start = time.time()
-    capture = pyshark.LiveCapture("loopback") #For testing scanning attacks
-    #capture = pyshark.LiveCapture("WI-FI")   #For testing SYN and UDP DoS attacks
+    #capture = pyshark.LiveCapture("loopback") #For testing scanning attacks
+    capture = pyshark.LiveCapture("WI-FI")   #For testing SYN and UDP DoS attacks
     try:
         for packet in capture:
             try:
@@ -164,8 +164,8 @@ def Dos_indicator(packet) :
 def distribute(packet) :
 
     #FILE OBJECTS:
-    TCP_object = open(r"TCP.txt", "a")
-    UDP_object = open(r"UDP.txt", "a")
+    TCP_object = open(r"Packet_information_TCP_attack.txt", "a")
+    UDP_object = open(r"Packet_information_UDP_attack.txt", "a")
 
     try:
         if "tcp" in packet:
@@ -173,17 +173,17 @@ def distribute(packet) :
             str_N = ('Name: ', packet.layers) 
             str_S_p = ('Scr. Port: ', packet[protocol].srcport)
             str_D_p = ('Dst. Port: ', packet[protocol].dstport)
-            str1 = (str_N, str_S_p, str_D_p )
+            str_S_ip = ('Src. IP: ', packet.ip.src)
+            str1 = (str_N, str_S_ip, str_S_p, str_D_p )
             TCP_object.writelines(str(str1) + os.linesep)
-            print ("TCP: ",str_N, packet[protocol].srcaddr, str_S_p, str_D_p, packet[protocol].dstaddr)
         elif "udp" in packet:
             protocol = packet.transport_layer
             str_N_2 = ('Name: ', packet.layers[-2])
             str_S_p_2 = ('Scr. Port: ', packet[protocol].srcport)
             str_D_p_2 = ('Dst. Port: ', packet[protocol].dstport)
-            str2 = (str_N_2, str_S_p_2, str_D_p_2)
+            str_S_ip_2 = ('Src. IP: ', packet.ip.src)
+            str2 = (str_N_2,str_S_ip_2, str_S_p_2, str_D_p_2)
             UDP_object.writelines(str(str2) + os.linesep)
-            print ("UDP: ",str_N_2, packet[protocol].srcaddr, str_S_p, str_D_p, packet[protocol].dstaddr)
         #else :
             #print("Neither TCP nor UDP")
 
