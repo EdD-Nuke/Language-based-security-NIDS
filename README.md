@@ -1,16 +1,16 @@
 ## Language-based-security-Repo.
 
-#Project for TDA602/DIT101 Language-Based Security LP4 Course
+# Project for TDA602/DIT101 Language-Based Security LP4 Course
 
-#Description
+# Description
 NIDS built for detecting:
  - SYN flood attacks
  - UDP flood attacks
  - Scanning attacks
 
-##Requirements
+## Requirements
 
-#Python modules
+# Python modules
  - Pyshark
  - Socket
  - Scapy
