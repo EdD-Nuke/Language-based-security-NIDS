@@ -26,8 +26,9 @@ IP_of_scan_attacker = None
 #Adjust these for according to preference/testing
 SYN_threshold = 400 #Number of SYN packets in analysis_interval before attack detected
 UDP_threshold = 400 #Number of UDP packets in analysis_interval before attack detected
-ICMP_threshold = 10 #Number of ICMP packets in analysis_interval before attack detected
-Analysis_interval = 2 #Interval for attack analysis (packets are checked every x seconds)
+ICMP_threshold = 100 #Number of ICMP packets in analysis_interval before attack detected
+Analysis_interval = 5 #Interval for attack analysis (packets are checked every x seconds)
+Ports_threshold = 40 #Number of activly scanned ports we allow before detect an attack
 
 '''
 The main method, 
@@ -52,8 +53,8 @@ def Cap():
     global Analysis_interval
     storage_counter = 0
     timer_analysis_start = time.time()
-    #capture = pyshark.LiveCapture("loopback") #For testing scanning attacks
-    capture = pyshark.LiveCapture("WI-FI")   #For testing SYN and UDP DoS attacks
+    capture = pyshark.LiveCapture("loopback") #For testing scanning attacks
+    #capture = pyshark.LiveCapture("WI-FI")   #For testing SYN and UDP DoS attacks
     try:
         for packet in capture:
             try:
@@ -231,9 +232,10 @@ def analysis_Scan():
     global Ports_List
     global IP_of_scan_attacker
     global scan_attack
+    global Ports_threshold
     #print("dictionary of ip and ports : ", Ports_List)
     for address_IP in Ports_List.keys() :
-        if  len(Ports_List[address_IP])> 5 : #40 ports every 5 seconds
+        if  len(Ports_List[address_IP])> Ports_threshold : #40 ports every 5 seconds
             IP_of_scan_attacker = address_IP
             Ports_List = {}
             scan_attack = True
